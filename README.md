@@ -21,3 +21,10 @@ https://github.com/jhayron-perez/ForecastPM2.5-SIATA/tree/master/operational_scr
 https://siata.gov.co/CalidadAire/Pronostico_PM25/
 
 Plots for each station, back trajectories, CAMS forecast, and hotspots from MODIS update hourly.
+
+### Note:
+
+For the code to run correctly, the version of the libraries must be the same as indicated in: 
+
+https://github.com/jhayron-perez/ForecastPM2.5-SIATA/blob/master/libraries_version.txt
+
