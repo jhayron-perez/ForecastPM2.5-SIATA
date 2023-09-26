@@ -12,6 +12,7 @@ import matplotlib.dates as mdates
 from matplotlib.dates import DateFormatter
 from scipy import interpolate
 import random
+import traceback
 
 def warn(*args, **kwargs):
     pass
@@ -27,6 +28,9 @@ from plotting import *
 stations = ["ITA-CJUS", "ITA-CONC", "MED-LAYE", "CAL-JOAR", "EST-HOSP", "MED-ALTA", "MED-VILL",
             "BAR-TORR", "COP-CVID", "MED-BEME", "MED-TESO", "MED-SCRI", "MED-ARAN", "BEL-FEVE", "ENV-HOSP", 
             "SAB-RAME", "MED-SELE","CEN-TRAF","SUR-TRAF"]
+stations = ["ITA-CJUS", "ITA-CONC", "MED-LAYE", "CAL-JOAR", "EST-HOSP", "MED-ALTA", "MED-VILL",
+            "BAR-TORR", "COP-CVID", "MED-BEME", "MED-TESO", "MED-SCRI", "MED-ARAN", "BEL-FEVE", "ENV-HOSP", 
+            "SAB-RAME", "MED-SELE","CEN-TRAF"]
 
 models = ['GB_MO','GB_CH','RF_MO','RF_CH']#,'LR_MO','LR_RC']
 
@@ -93,7 +97,8 @@ for i_station in range(len(stations)):
         dic_probs_dataframes[station] = members_df
         dic_pm2p5[station] = pm2p5
         dic_forecasts[station]['MEAN'] = dic_forecasts[station].mean(axis=1)
-    except: pass
+    except Exception:
+        traceback.print_exc()
 
 ### Summary ###
 path_summary = '/var/data1/AQ_Forecast_DATA/results/summary/'
@@ -146,6 +151,21 @@ path_plot_bt = '/var/data1/AQ_Forecast_DATA/results/ifrp/png/Traj_'+str_initial_
 plot_trajectories_hotspots(path_bt,path_fires,forecast_initial_date,path_plot_bt)
 path_plot_bt_var = '/var/data1/AQ_Forecast_DATA/results/var/png/Traj.png'
 plot_trajectories_hotspots(path_bt,path_fires,forecast_initial_date,path_plot_bt_var)
+
+
+### Plot ICA figure (in test)
+path_plot_ica = '/var/data1/AQ_Forecast_DATA/results/summary/png/Fc24h_ICAsummary_'+str_initial_date+'.png'
+path_plot_ica_var = '/var/data1/AQ_Forecast_DATA/results/var/png/Fc24h_ICAsummary.png'
+plot_ForeICA24h(forecast_initial_date, path_plot_ica)
+plot_ForeICA24h(forecast_initial_date, path_plot_ica_var)
+
+
+### Plot ICA figure - poblacionales (in test)
+path_plot_ica = '/var/data1/AQ_Forecast_DATA/results/summary/png/Fc24h_ICAsummary_pob_'+str_initial_date+'.png'
+path_plot_ica_var = '/var/data1/AQ_Forecast_DATA/results/var/png/Fc24h_ICAsummary_pob.png'
+plot_ForeICA24h_pob(forecast_initial_date, path_plot_ica)
+plot_ForeICA24h_pob(forecast_initial_date, path_plot_ica_var)
+
 
 # Copiar todo a SAL:
 sal_path = '/var/www/CalidadAire/Pronostico_PM25/'

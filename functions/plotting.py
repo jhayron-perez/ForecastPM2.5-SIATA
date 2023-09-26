@@ -430,3 +430,275 @@ def plot_trajectories_hotspots(path_bt,path_fires,date_forecast,path_output):
         'retrotrayectorias pronosticadas para las próximas 96 horas\n'+\
               str(date_forecast),fontsize=14,loc='left')
     plt.savefig(path_output,bbox_inches='tight')
+    
+def plot_ForeICA24h(date_forecast, path_output):
+    #Importando librerías
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch
+    import datetime as dt
+
+    #Importando airquality
+    import sys
+    sys.path.append('/home/calidadaire/Paquete/')
+    import airquality.read_data as aqread
+    
+    #Definiendo directorio de salida
+    dirout_figs = path_output
+    
+    #Fecha para la lectura del pronóstico
+    year = str(date_forecast.year)
+    month = str(date_forecast.month).zfill(2)
+    day = str(date_forecast.day).zfill(2)
+    hour = str(date_forecast.hour).zfill(2)
+    
+    #Definiendo estaciones
+    AQStats = ["ITA-CJUS", "ITA-CONC", "MED-LAYE", "CAL-JOAR", "EST-HOSP", "MED-ALTA",
+               "MED-VILL", "BAR-TORR", "COP-CVID", "MED-BEME", "MED-TESO", "MED-SCRI",
+               "MED-ARAN", "BEL-FEVE", "ENV-HOSP", "SAB-RAME", "MED-SELE","CEN-TRAF",
+               "SUR-TRAF"]
+    
+    #Para leer información del pronóstico
+    datei_for = '{0}-{1}-{2} {3}:00'.format(year, month, day, hour)
+    #Para leer información de las observaciones (hasta antes de la hora de inicialización)
+    datef_obs = (pd.to_datetime(datei_for) - pd.Timedelta(hours=1)).strftime('%Y-%m-%d %H:%M')
+    datei_obs = (pd.to_datetime(datef_obs) - pd.Timedelta(days=1)).strftime('%Y-%m-%d %H:%M')
+
+    #Cargando datos requeridos calidad del aire
+    DataObs_PM25 = aqread.PM25(Fechai=datei_obs, Fechaf=datef_obs, estaciones=AQStats)
+    DataObs_PM25 = DataObs_PM25.data
+
+    #Creando DataFrame para almacenar la información
+    DFTotal_PM25 = pd.DataFrame(DataObs_PM25.mean(axis=0))
+    #Dando estructura al DF
+    for idx in range(1, 25):
+        DFTotal_PM25[idx] = np.nan
+    
+    
+    #Leyendo archivo del pronóstico (con base en la fecha)
+    filename = '{0}{1}{2}_{3}.csv'.format(year, month, day, hour)
+
+    #Recorriendo las estaciones
+    for aqsta in AQStats:
+        #Directorio de entrada
+        dirin_data = '/var/data1/AQ_Forecast_DATA/results/{0}/csv/'.format(aqsta)
+        #Obteniendo información
+        try:
+            DataFore_PM25 = pd.read_csv(dirin_data + filename, index_col=[0], parse_dates=[0],
+                                        infer_datetime_format=True)
+            DataFore_PM25 = DataFore_PM25.mean(axis=1).iloc[:24]
+        except:
+            continue
+
+        #Guardando información en DataFrame
+        DFTotal_PM25.loc[aqsta, range(1, 25)] = DataFore_PM25.values
+
+    #Ordenando dataframe en función de la concentración pronosticada a 6 horas
+    DFTotal_PM25.sort_values(6, ascending=False, inplace=True)
+    
+    
+    #GRAFICANDO INFORMACIÓN
+    #Definiendo paleta de colores en función del ICA
+    import matplotlib as mpl
+    cmap = mpl.colors.ListedColormap(['#00ab5c','#ffff01','#fea500','#fe0000','#873ac0'])
+    ICAval = [0, 12.6, 37.6, 55.6, 150, 501]
+    norm = mpl.colors.BoundaryNorm(ICAval, cmap.N)
+
+    #Creando figura
+    fig, ax = plt.subplots(figsize=(12, 12))
+
+    #Graficando información
+    ax.imshow(DFTotal_PM25.values, cmap=cmap, norm=norm)
+
+    #Parámetros adicionales
+    ax.set_yticks(range(len(DFTotal_PM25)))
+    ax.set_yticklabels(DFTotal_PM25.index)
+    ax.set_xticks(range(0, 25))
+    ax.set_xticklabels(['Now'] + ['+'+str(i) for i in range(1, 25)])
+    ax.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False)
+    ax.set_aspect(0.7)
+    ax.axvline(0.5, color='black', linestyle=':')
+    ax.set_xlabel('Horas (pronóstico)', fontsize=12, labelpad=10)
+    ax.xaxis.set_label_position('top')
+
+
+    #Añadiendo grillas
+    # Minor ticks
+    ax.set_xticks(np.arange(-.5, 25, 1), minor=True)
+    ax.set_yticks(np.arange(-.5, len(DFTotal_PM25), 1), minor=True)
+    #Grid
+    ax.grid(which='minor', color='w', linestyle='-', linewidth=2)
+    #Eliminando minor ticks
+    for tick in ax.xaxis.get_minor_ticks():
+        tick.tick1line.set_visible(False)
+        tick.tick2line.set_visible(False)
+        tick.label1.set_visible(False)
+        tick.label2.set_visible(False)
+    for tick in ax.yaxis.get_minor_ticks():
+        tick.tick1line.set_visible(False)
+        tick.tick2line.set_visible(False)
+        tick.label1.set_visible(False)
+        tick.label2.set_visible(False)
+    #Estableciendo fecha inicial del pronóstico
+    plt.title('Fecha inicial del pronóstico: '+str(date_forecast)+ ' HL',
+              fontsize=14, loc='left')
+    
+    
+    #Definiendo listas con la información requerida para la leyenda
+    Labels = ['Buena', 'Aceptable', 'Dañina grupos sensibles', 'Dañina', 'Muy dañina']
+    Colors = ['#00ab5c','#ffff01','#fea500','#fe0000','#873ac0']
+
+    handles = [Patch(facecolor=color, label=label) for label, color in zip(Labels, Colors)]
+
+    #Añadiendo leyenda
+    ax.legend(handles=handles, loc='upper left', bbox_to_anchor=(0., -0.01), ncol=5, fontsize=12.5,
+              edgecolor='white', handletextpad=0.6)
+    
+    #Añadiendo texto
+    t1 = ("* Esta figura muestra el pronóstico del Índice de Calidad del Aire (ICA) para diferentes estaciones de calidad del aire\ndel Valle de Aburrá.\n\n"
+          "* Now se refiere al ICA de las últimas 24 horas (observado).\n\n"
+          "* Los pronósticos se indican con el signo + y la hora en el futuro a la que se está pronosticando.\nPor ejemplo: +6 indica el pronóstico a 6 horas.\n\n")
+    text1 = plt.figtext(0.125, 0.12, t1, fontsize=11, wrap=True, horizontalalignment='left')
+
+
+    #Guardando y mostrando la figura
+    plt.savefig(dirout_figs, dpi=300, bbox_inches='tight')
+    plt.close()
+    
+    
+def plot_ForeICA24h_pob(date_forecast, path_output):
+    #Importando librerías
+    import pandas as pd
+    import numpy as np
+    import matplotlib.pyplot as plt
+    from matplotlib.patches import Patch
+    import datetime as dt
+
+    #Importando airquality
+    import sys
+    sys.path.append('/home/calidadaire/Paquete/')
+    import airquality.read_data as aqread
+    
+    #Definiendo directorio de salida
+    dirout_figs = path_output
+    
+    #Fecha para la lectura del pronóstico
+    year = str(date_forecast.year)
+    month = str(date_forecast.month).zfill(2)
+    day = str(date_forecast.day).zfill(2)
+    hour = str(date_forecast.hour).zfill(2)
+    
+    #Definiendo estaciones
+    AQStats = ["ITA-CJUS", "ITA-CONC", "MED-LAYE", "CAL-JOAR", "EST-HOSP", "MED-ALTA",
+               "MED-VILL", "BAR-TORR", "COP-CVID", "MED-BEME", "MED-TESO", "MED-SCRI",
+               "MED-ARAN", "BEL-FEVE", "ENV-HOSP", "SAB-RAME", "MED-SELE"]
+    
+    #Para leer información del pronóstico
+    datei_for = '{0}-{1}-{2} {3}:00'.format(year, month, day, hour)
+    #Para leer información de las observaciones (hasta antes de la hora de inicialización)
+    datef_obs = (pd.to_datetime(datei_for) - pd.Timedelta(hours=1)).strftime('%Y-%m-%d %H:%M')
+    datei_obs = (pd.to_datetime(datef_obs) - pd.Timedelta(days=1)).strftime('%Y-%m-%d %H:%M')
+
+    #Cargando datos requeridos calidad del aire
+    DataObs_PM25 = aqread.PM25(Fechai=datei_obs, Fechaf=datef_obs, estaciones=AQStats)
+    DataObs_PM25 = DataObs_PM25.data
+
+    #Creando DataFrame para almacenar la información
+    DFTotal_PM25 = pd.DataFrame(DataObs_PM25.mean(axis=0))
+    #Dando estructura al DF
+    for idx in range(1, 25):
+        DFTotal_PM25[idx] = np.nan
+    
+    
+    #Leyendo archivo del pronóstico (con base en la fecha)
+    filename = '{0}{1}{2}_{3}.csv'.format(year, month, day, hour)
+
+    #Recorriendo las estaciones
+    for aqsta in AQStats:
+        #Directorio de entrada
+        dirin_data = '/var/data1/AQ_Forecast_DATA/results/{0}/csv/'.format(aqsta)
+        #Obteniendo información
+        try:
+            DataFore_PM25 = pd.read_csv(dirin_data + filename, index_col=[0], parse_dates=[0],
+                                        infer_datetime_format=True)
+            DataFore_PM25 = DataFore_PM25.mean(axis=1).iloc[:24]
+        except:
+            continue
+
+        #Guardando información en DataFrame
+        DFTotal_PM25.loc[aqsta, range(1, 25)] = DataFore_PM25.values
+
+    #Ordenando dataframe en función de la concentración pronosticada a 6 horas
+    DFTotal_PM25.sort_values(6, ascending=False, inplace=True)
+    
+    
+    #GRAFICANDO INFORMACIÓN
+    #Definiendo paleta de colores en función del ICA
+    import matplotlib as mpl
+    cmap = mpl.colors.ListedColormap(['#00ab5c','#ffff01','#fea500','#fe0000','#873ac0'])
+    ICAval = [0, 12.6, 37.6, 55.6, 150, 501]
+    norm = mpl.colors.BoundaryNorm(ICAval, cmap.N)
+
+    #Creando figura
+    fig, ax = plt.subplots(figsize=(12, 12))
+
+    #Graficando información
+    ax.imshow(DFTotal_PM25.values, cmap=cmap, norm=norm)
+
+    #Parámetros adicionales
+    ax.set_yticks(range(len(DFTotal_PM25)))
+    ax.set_yticklabels(DFTotal_PM25.index)
+    ax.set_xticks(range(0, 25))
+    ax.set_xticklabels(['Now'] + ['+'+str(i) for i in range(1, 25)])
+    ax.tick_params(top=True, labeltop=True, bottom=False, labelbottom=False)
+    ax.set_aspect(0.7)
+    ax.axvline(0.5, color='black', linestyle=':')
+    ax.set_xlabel('Horas (pronóstico)', fontsize=12, labelpad=10)
+    ax.xaxis.set_label_position('top')
+
+
+    #Añadiendo grillas
+    # Minor ticks
+    ax.set_xticks(np.arange(-.5, 25, 1), minor=True)
+    ax.set_yticks(np.arange(-.5, len(DFTotal_PM25), 1), minor=True)
+    #Grid
+    ax.grid(which='minor', color='w', linestyle='-', linewidth=2)
+    #Eliminando minor ticks
+    for tick in ax.xaxis.get_minor_ticks():
+        tick.tick1line.set_visible(False)
+        tick.tick2line.set_visible(False)
+        tick.label1.set_visible(False)
+        tick.label2.set_visible(False)
+    for tick in ax.yaxis.get_minor_ticks():
+        tick.tick1line.set_visible(False)
+        tick.tick2line.set_visible(False)
+        tick.label1.set_visible(False)
+        tick.label2.set_visible(False)
+    #Estableciendo fecha inicial del pronóstico
+    plt.title('Fecha inicial del pronóstico: '+str(date_forecast)+ ' HL',
+              fontsize=14, loc='left')
+    
+    
+    #Definiendo listas con la información requerida para la leyenda
+    Labels = ['Buena', 'Aceptable', 'Dañina grupos sensibles', 'Dañina', 'Muy dañina']
+    Colors = ['#00ab5c','#ffff01','#fea500','#fe0000','#873ac0']
+
+    handles = [Patch(facecolor=color, label=label) for label, color in zip(Labels, Colors)]
+
+    #Añadiendo leyenda
+    ax.legend(handles=handles, loc='upper left', bbox_to_anchor=(0., -0.01), ncol=5, fontsize=12.5,
+              edgecolor='white', handletextpad=0.6)
+    
+    #Añadiendo texto
+    t1 = ("* Esta figura muestra el pronóstico del Índice de Calidad del Aire (ICA) para diferentes estaciones poblacionales\nde calidad del aire del Valle de Aburrá.\n\n"
+          "* Now se refiere al ICA de las últimas 24 horas (observado).\n\n"
+          "* Los pronósticos se indican con el signo + y la hora en el futuro a la que se está pronosticando.\nPor ejemplo: +6 indica el pronóstico a 6 horas.\n\n")
+    text1 = plt.figtext(0.125, 0.15, t1, fontsize=11, wrap=True, horizontalalignment='left')
+
+
+    #Guardando y mostrando la figura
+    plt.savefig(dirout_figs, dpi=300, bbox_inches='tight')
+    plt.close()   
+    
+    

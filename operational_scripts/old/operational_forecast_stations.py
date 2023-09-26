@@ -40,7 +40,7 @@ import keras
 
 stations = ["ITA-CJUS", "CAL-LASA", "ITA-CONC", "MED-LAYE", "CAL-JOAR", "EST-HOSP", "MED-ALTA", "MED-VILL", 
             "BAR-TORR", "COP-CVID", "MED-BEME", "MED-TESO", "MED-SCRI", "MED-ARAN", "BEL-FEVE", "ENV-HOSP", 
-            "SAB-RAME", "MED-SELE","CEN-TRAF", "SUR-TRAF"]
+            "SAB-RAME", "MED-SELE","CEN-TRAF"]
 
 
 # In[3]:
@@ -70,7 +70,7 @@ for station in stations:
 
         forecasts = pd.DataFrame(index = df_CAMS['pm2p5_cams'][forecast_initial_date:forecast_initial_date+                                                          dt.timedelta(hours = 95)].index)
 
-        model_names = ['LR','MLP','RF','SVR','GB','KNN','CAMS']
+        model_names = ['LR','MLP','RF','SVR','KNN','CAMS']
 
         for model_name in model_names:
             if model_name=='CAMS':

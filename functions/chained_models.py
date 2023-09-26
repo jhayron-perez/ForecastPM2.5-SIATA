@@ -21,9 +21,10 @@ class MultiOutputLGBM(object):
         for i in range(Ny):
             Xi = np.hstack([X, Y[:, :i]])
             yi = Y[:, i]
-            lgb_train = lgb.Dataset(Xi, yi)
-            clf = lgb.train(*self.args, **self.kwargs,train_set=lgb_train)
-            self.clfs.append(clf)
+#             lgb_train = lgb.Dataset(Xi, yi)
+            clf = lgb.LGBMRegressor(*self.args,**self.kwargs)
+#             lgb.train(*self.args, **self.kwargs,train_set=lgb_train)
+            self.clfs.append(clf.fit(Xi,yi))
             
         return self
         

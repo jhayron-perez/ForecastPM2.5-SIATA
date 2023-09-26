@@ -1,0 +1,37 @@
+Warning: ecCodes 2.21.0 or higher is recommended. You are running version 2.19.1
+1
+2
+['https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f000.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f003.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f006.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f009.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f012.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f015.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f018.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f021.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f024.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f027.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f030.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f033.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f036.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f039.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f042.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f045.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f048.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f051.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f054.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f057.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f060.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f063.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f066.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f069.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f072.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f075.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f078.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f081.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f084.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f087.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f090.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f093.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f096.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f099.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f102.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f105.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f108.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f111.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f114.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f117.grib2', 'https://data.rda.ucar.edu/ds084.1/2020/20200407/gfs.0p25.2020040700.f120.grib2']
+Downloading gfs.0p25.2020040700.f000.grib2
+Downloading gfs.0p25.2020040700.f003.grib2
+Downloading gfs.0p25.2020040700.f006.grib2
+Traceback (most recent call last):
+  File "/home/jsperezc/jupyter/AQ_Forecast/evaluation_rev1/download_operational_GFS_Forecast.py", line 348, in <module>
+    urllib.request.urlretrieve(filename, '/var/data1/AQ_Forecast_DATA/test/GFS/raw/%s/'%hoy + file_base)
+  File "/usr/lib/python3.9/urllib/request.py", line 239, in urlretrieve
+    with contextlib.closing(urlopen(url, data)) as fp:
+  File "/usr/lib/python3.9/urllib/request.py", line 214, in urlopen
+    return opener.open(url, data, timeout)
+  File "/usr/lib/python3.9/urllib/request.py", line 517, in open
+    response = self._open(req, data)
+  File "/usr/lib/python3.9/urllib/request.py", line 534, in _open
+    result = self._call_chain(self.handle_open, protocol, protocol +
+  File "/usr/lib/python3.9/urllib/request.py", line 494, in _call_chain
+    result = func(*args)
+  File "/usr/lib/python3.9/urllib/request.py", line 1389, in https_open
+    return self.do_open(http.client.HTTPSConnection, req,
+  File "/usr/lib/python3.9/urllib/request.py", line 1350, in do_open
+    r = h.getresponse()
+  File "/usr/lib/python3.9/http/client.py", line 1371, in getresponse
+    response.begin()
+  File "/usr/lib/python3.9/http/client.py", line 319, in begin
+    version, status, reason = self._read_status()
+  File "/usr/lib/python3.9/http/client.py", line 280, in _read_status
+    line = str(self.fp.readline(_MAXLINE + 1), "iso-8859-1")
+  File "/usr/lib/python3.9/socket.py", line 704, in readinto
+    return self._sock.recv_into(b)
+  File "/usr/lib/python3.9/ssl.py", line 1241, in recv_into
+    return self.read(nbytes, buffer)
+  File "/usr/lib/python3.9/ssl.py", line 1099, in read
+    return self._sslobj.read(len, buffer)
+KeyboardInterrupt

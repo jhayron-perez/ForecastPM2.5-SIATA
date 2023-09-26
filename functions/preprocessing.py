@@ -232,7 +232,7 @@ def get_pm2p5_for_forecast(forecast_initial_date,station_name=None):
                          str(forecast_initial_date)).data
     trained_stations = ["ITA-CJUS", "ITA-CONC", "MED-LAYE", "CAL-JOAR", "EST-HOSP", "MED-ALTA", "MED-VILL",
             "BAR-TORR", "COP-CVID", "MED-BEME", "MED-TESO", "MED-SCRI", "MED-ARAN", "BEL-FEVE", "ENV-HOSP", 
-            "SAB-RAME", "MED-SELE","CEN-TRAF","SUR-TRAF"]
+            "SAB-RAME", "MED-SELE","CEN-TRAF"]
     
     if station_name==None:
         df_pm2p5 = df_pm2p5[trained_stations]
@@ -271,6 +271,267 @@ def get_inputs_for_forecast(station, forecast_initial_date):
     file_ifrp = files_ifrp[dates_ifrp<=forecast_initial_date+\
                dt.timedelta(hours=5)-dt.timedelta(hours=5)][-1]
     df_IFRP = pd.read_csv(file_ifrp,index_col=1,parse_dates=True)[['IFRP']]
+    df_IFRP.index = df_IFRP.index-dt.timedelta(hours=5)
+
+    # Lagged data
+    x_shifts = pm2p5.loc[forecast_initial_date-dt.timedelta(hours=47):forecast_initial_date].values[:,0]
+
+    index_future = pd.date_range(forecast_initial_date+dt.timedelta(hours=1),\
+                  forecast_initial_date+dt.timedelta(hours=96),freq='H')
+
+    # CAMS
+    cams_future = df_optimal_cams.loc[index_future[0]:].iloc[np.arange(0,97,3),:]
+    aod_future = cams_future['aod'].values
+
+    # GFS
+    gfs_future = df_optimal_gfs.loc[index_future[0]:].iloc[np.arange(0,97,3),:]
+    tcc_future = gfs_future['tcc'].values
+    prate_future = gfs_future['prate'].values
+    hpbl_future = gfs_future['hpbl'].values
+
+    # IFRP
+    ifrp50_future = df_IFRP.rolling(3,center=True).max().loc[index_future[0]:].iloc[np.arange(0,97,3),0].values
+
+    # HOD/DOW
+    df_hour = pd.DataFrame(index_future.hour, index = index_future)
+    hod1_future = np.sin(2*np.pi*(df_hour/24)).iloc[np.arange(0,24,1),0].values
+    hod2_future = np.cos(2*np.pi*(df_hour/24)).iloc[np.arange(0,24,1),0].values
+
+    df_dow = pd.DataFrame(index_future.dayofweek, index = index_future)
+    dow1_future = np.sin(2*np.pi*(df_dow/7)).iloc[np.arange(0,96,24),0].values
+    dow2_future = np.cos(2*np.pi*(df_dow/7)).iloc[np.arange(0,96,24),0].values
+
+    x_temp = np.hstack([x_shifts,
+        aod_future,
+        tcc_future,
+        prate_future,
+        hpbl_future,
+        ifrp50_future,
+        dow1_future,
+        dow2_future,
+        hod1_future,
+        hod2_future])
+    
+    return index_future, x_temp, pm2p5, df_GFS, df_CAMS, df_IFRP
+
+
+
+#### MODIFICACIONES A FUNCIONES ORIGINALES ####
+def get_gfs_for_historic(forecast_initial_date,path_data,\
+    gfs_correlations_path = '/var/data1/AQ_Forecast_DATA/historic/GFS/correlations',\
+    latlon = None):
+    ## forecast_date_0: initial hour of forecast (last hour in which pm2.5 data is available)
+    ## path_data: folder with this type of files: gfs_0p25_2021050112.nc
+    ## gfs_correlations_path: path with pm2.5 vs gfs variables correlation matrices (for optimally averaging)
+    ## operational: False when it is a historic run
+    ## latlon: coordenates of station, if None the output will be the mean for the Aburra Valley
+    
+    
+    ### We need to get data for the next 5 days and the past day, then optimally average them
+    #Para datos históricos (que se almacenan en el server)
+    Ls_gfs_paths = []
+    Ls_gfs_files_names = []
+
+    for init_hour in ['00', '06', '12', '18']:
+        #Obteniendo archivos en cada una de las carpetas
+        path_data_hour = path_data+'{0}/'.format(init_hour)
+        path_names = np.sort(glob.glob(path_data_hour+'gfs_0p25_*.nc'))
+        files_names = pd.Series(path_names).str.split('/', expand=True).iloc[:, -1].values
+
+        #Guardando
+        Ls_gfs_paths.append(path_names)
+        Ls_gfs_files_names.append(files_names)
+
+
+    #Concatenando y ordenando
+    gfs_files_names = np.sort(np.concatenate(Ls_gfs_files_names))
+
+    #Definiendo fechas a partir de los archivos
+    initial_dates_gfs_files = np.array([dt.datetime.strptime(gfs_files_names[i].split('_')[-1].split('.')[0],\
+        '%Y%m%d%H') for i in range(len(gfs_files_names))])
+
+
+    #Obteniendo archivos a leer
+    latency = 8 # hours
+    gfs_2_files = gfs_files_names[np.where(initial_dates_gfs_files - dt.timedelta(hours = 5) \
+            <= forecast_initial_date - dt.timedelta(hours = latency))[0]][-2:]
+
+    #Agregando path a estos archivos
+    for idx in range(len(gfs_2_files)):
+        gfs_2_files[idx] = path_data+'{0}/'.format(gfs_2_files[idx][-5:-3]) + gfs_2_files[idx]
+    
+
+
+    
+    ### Read the files and keep the most updated value
+    dataset_1 = xr.open_mfdataset(gfs_2_files[0])
+    dataset_2 = xr.open_mfdataset(gfs_2_files[1])
+    gfs_total = xr.concat([dataset_1,dataset_2], dim = "time")
+    gfs_recorte = postprocessing.recorte_espacial(gfs_total)
+    
+    lat = gfs_recorte.latitude.values
+    lon = gfs_recorte.longitude.values
+    tcc = gfs_recorte.tcc_atm_avg.values
+    rad = gfs_recorte.rad_in.values
+    prate = gfs_recorte.prate_srf_avg.values
+    hpbl = gfs_recorte.hpbl.values
+    cin = gfs_recorte.cin.values
+    
+    if latlon == None: ## Get mean series
+        mean_tcc = np.mean(gfs_recorte.tcc_atm_avg[:],axis = [1,2]).values #%
+        mean_rad = np.mean(gfs_recorte.rad_in[:],axis = [1,2]).values #W/m2
+        mean_prate = np.mean(gfs_recorte.prate_srf_avg[:],axis = [1,2]).values #kg m*-2 s*-1
+        mean_hpbl = np.mean(gfs_recorte.hpbl[:],axis = [1,2]).values #m
+        mean_cin = np.mean(gfs_recorte.cin[:],axis = [1,2]).values #J kg**-1
+
+        df_GFS = pd.DataFrame(np.array([mean_tcc,mean_rad,mean_prate,mean_hpbl,mean_cin]).T,
+                             index = gfs_recorte.time,columns = ['tcc','rad','prate','hpbl','cin'])
+        df_GFS['prate'] = df_GFS['prate']*60*60
+        df_GFS_temp = df_GFS.reset_index()
+        df_GFS = df_GFS_temp.drop_duplicates("index",keep= "last") ## Esto para eliminar los datos que se solapan entre las diferentes corridas
+        ## y conservar el último, que sería el más actualizado (última descarga)
+        df_GFS.set_index("index", inplace=True)
+        df_GFS.index = df_GFS.index-dt.timedelta(hours = 1.5)
+        df_GFS_hourly = df_GFS.resample('H').mean().interpolate(method = 'linear',order = 3)
+        df_GFS_hourly.index = df_GFS_hourly.index - dt.timedelta(hours = 5)
+
+    else: ## Nearest point
+        lat_station = latlon[0]
+        lon_station = latlon[1]
+        ilon = np.argmin(abs(lon_station-lon))
+        ilat = np.argmin(abs(lat_station-lat))
+        tcc_temp = tcc[:,ilat,ilon] #%
+        rad_temp = rad[:,ilat,ilon] #W/m2
+        prate_temp = prate[:,ilat,ilon] #kg m*-2 s*-1
+        hpbl_temp = hpbl[:,ilat,ilon] #m
+        cin_temp = cin[:,ilat,ilon] #J kg**-1
+        df_GFS = pd.DataFrame(np.array([tcc_temp,rad_temp,prate_temp,hpbl_temp,cin_temp]).T,
+                             index = gfs_recorte.time,columns = ['tcc','rad','prate','hpbl','cin'])
+        df_GFS['prate'] = df_GFS['prate']*60*60
+        df_GFS_temp = df_GFS.reset_index()
+        df_GFS = df_GFS_temp.drop_duplicates("index",keep= "last") ## Esto para eliminar los datos que se solapan entre las diferentes corridas
+        ## y conservar el último, que sería el más actualizado (última descarga)
+        df_GFS.set_index("index", inplace=True)
+        df_GFS.index = df_GFS.index-dt.timedelta(hours = 1.5)
+        df_GFS_hourly = df_GFS.resample('H').mean().interpolate(method = 'linear',order = 3)
+        df_GFS_hourly.index = df_GFS_hourly.index - dt.timedelta(hours = 5)
+    
+    keys_gfs = np.array(df_GFS_hourly.keys()).astype(str)
+    
+    ### Now get optimal average
+    df_optimal = pd.DataFrame(index = df_GFS_hourly.index)
+    for variable in keys_gfs:
+        df_optimal_temp = copy.deepcopy(df_GFS_hourly[[variable]])
+        for hour in range(0,24):
+            optimal_window = get_optimal_window(variable,hour,gfs_correlations_path)
+            df_optimal_temp[df_optimal_temp.index.hour == hour] = df_GFS_hourly[[variable]].rolling(optimal_window,min_periods=1).mean()\
+                [df_optimal_temp.index.hour == hour]
+        df_optimal[variable] = df_optimal_temp
+        
+    return df_GFS_hourly,df_optimal
+
+
+def get_inputs_for_historic(station, forecast_initial_date):
+    gfs_path = '/var/data1/AQ_Forecast_DATA/historic/GFS/historic/'
+    cams_path = '/var/data1/AQ_Forecast_DATA/historic/CAMS/Pronostico/'
+    path_IFRP ="/var/data1/AQ_Forecast_DATA/historic/GFS/historic/Vientos/BT/IFRP/"
+    files_ifrp = np.sort(glob.glob(path_IFRP+'*'))
+    dates_ifrp = np.array([dt.datetime.strptime(files_ifrp[i].split('/')[-1][:-4],'%Y%m%d%H')\
+        for i in range(len(files_ifrp))])
+
+    coor_esta= pd.read_csv("/var/data1/AQ_Forecast_DATA/historic/PM25/CoordenadasEstaciones.csv", 
+                           index_col= "Nombre")
+    lat_est = coor_esta.loc[station].Latitud
+    lon_est = coor_esta.loc[station].Longitud
+
+    # Get PM2.5
+
+    pm2p5 = get_pm2p5_for_forecast(forecast_initial_date-dt.timedelta(hours=1),station_name=station)
+    pm2p5.index = pm2p5.index+dt.timedelta(hours=1)
+
+    ### Get GFS and CAMS ###
+    df_GFS,df_optimal_gfs = get_gfs_for_historic(forecast_initial_date,\
+        gfs_path,latlon = (lat_est,lon_est))
+    df_CAMS,df_optimal_cams = get_cams_for_forecast(forecast_initial_date,\
+        cams_path,operational = False,latlon = (lat_est,lon_est))
+
+    ### Get IFRP
+    file_ifrp = files_ifrp[dates_ifrp<=forecast_initial_date+\
+               dt.timedelta(hours=5)-dt.timedelta(hours=5)][-1]
+    df_IFRP = pd.read_csv(file_ifrp,index_col=1,parse_dates=True)[['IFRP']]
+    df_IFRP.index = df_IFRP.index-dt.timedelta(hours=5)
+
+    # Lagged data
+    x_shifts = pm2p5.loc[forecast_initial_date-dt.timedelta(hours=47):forecast_initial_date].values[:,0]
+
+    index_future = pd.date_range(forecast_initial_date+dt.timedelta(hours=1),\
+                  forecast_initial_date+dt.timedelta(hours=96),freq='H')
+
+    # CAMS
+    cams_future = df_optimal_cams.loc[index_future[0]:].iloc[np.arange(0,97,3),:]
+    aod_future = cams_future['aod'].values
+
+    # GFS
+    gfs_future = df_optimal_gfs.loc[index_future[0]:].iloc[np.arange(0,97,3),:]
+    tcc_future = gfs_future['tcc'].values
+    prate_future = gfs_future['prate'].values
+    hpbl_future = gfs_future['hpbl'].values
+
+    # IFRP
+    ifrp50_future = df_IFRP.rolling(3,center=True).max().loc[index_future[0]:].iloc[np.arange(0,97,3),0].values
+
+    # HOD/DOW
+    df_hour = pd.DataFrame(index_future.hour, index = index_future)
+    hod1_future = np.sin(2*np.pi*(df_hour/24)).iloc[np.arange(0,24,1),0].values
+    hod2_future = np.cos(2*np.pi*(df_hour/24)).iloc[np.arange(0,24,1),0].values
+
+    df_dow = pd.DataFrame(index_future.dayofweek, index = index_future)
+    dow1_future = np.sin(2*np.pi*(df_dow/7)).iloc[np.arange(0,96,24),0].values
+    dow2_future = np.cos(2*np.pi*(df_dow/7)).iloc[np.arange(0,96,24),0].values
+
+    x_temp = np.hstack([x_shifts,
+        aod_future,
+        tcc_future,
+        prate_future,
+        hpbl_future,
+        ifrp50_future,
+        dow1_future,
+        dow2_future,
+        hod1_future,
+        hod2_future])
+    
+    return index_future, x_temp, pm2p5, df_GFS, df_CAMS, df_IFRP
+
+
+def get_inputs_for_historic_nofires(station, forecast_initial_date):
+    gfs_path = '/var/data1/AQ_Forecast_DATA/historic/GFS/historic/'
+    cams_path = '/var/data1/AQ_Forecast_DATA/historic/CAMS/Pronostico/'
+    path_IFRP ="/var/data1/AQ_Forecast_DATA/historic/GFS/historic/Vientos/BT/IFRP/"
+    files_ifrp = np.sort(glob.glob(path_IFRP+'*'))
+    dates_ifrp = np.array([dt.datetime.strptime(files_ifrp[i].split('/')[-1][:-4],'%Y%m%d%H')\
+        for i in range(len(files_ifrp))])
+
+    coor_esta= pd.read_csv("/var/data1/AQ_Forecast_DATA/historic/PM25/CoordenadasEstaciones.csv", 
+                           index_col= "Nombre")
+    lat_est = coor_esta.loc[station].Latitud
+    lon_est = coor_esta.loc[station].Longitud
+
+    # Get PM2.5
+
+    pm2p5 = get_pm2p5_for_forecast(forecast_initial_date-dt.timedelta(hours=1),station_name=station)
+    pm2p5.index = pm2p5.index+dt.timedelta(hours=1)
+
+    ### Get GFS and CAMS ###
+    df_GFS,df_optimal_gfs = get_gfs_for_historic(forecast_initial_date,\
+        gfs_path,latlon = (lat_est,lon_est))
+    df_CAMS,df_optimal_cams = get_cams_for_forecast(forecast_initial_date,\
+        cams_path,operational = False,latlon = (lat_est,lon_est))
+
+    ### Get IFRP
+    file_ifrp = files_ifrp[dates_ifrp<=forecast_initial_date+\
+               dt.timedelta(hours=5)-dt.timedelta(hours=5)][-1]
+    df_IFRP = pd.read_csv(file_ifrp,index_col=1,parse_dates=True)[['IFRP']]
+    df_IFRP.IFRP = df_IFRP.IFRP * 0    #Haciendo cero por los incendios
     df_IFRP.index = df_IFRP.index-dt.timedelta(hours=5)
 
     # Lagged data
